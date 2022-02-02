@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Sep  9 21:41:53 2021
+Created on Sat Oct 23 12:32:18 2021
 
 @author: kristenzarcone
 """
-#INNER RADIUS/4--- 4in diameter
 
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Sep 24 16:17:41 2018
+@author: to_reilly
+"""
 
 import numpy as np
 import halbachFields
@@ -17,26 +21,34 @@ import ctypes
 import time
 import matplotlib.pyplot as plt
 
-    
 def fieldError(shimVector):
     field = np.zeros(np.size(sharedShimMagnetsFields,0))
     for idx1 in range(0,np.size(shimVector)):
         field += sharedShimMagnetsFields[:,idx1,shimVector[idx1]]
     return (((np.max(field)-np.min(field))/np.mean(field))*1e6,)
 
+ir=50e-3   #4-8cm --6cm 
+maglength=6 #6 1/2 inch squares for 3 inch magnet
+nm=9  #constrained by radius 
+magnetdimension=12.7e-3 #mm
 
 if __name__ == "__main__":
 
-    innerRingRadii = np.array([38,38,39,39,40,41,41,42,43,44,44,45,46,47,47,48,49,50,50])*1e-3
-    innerNumMagnets = np.array([13,13, 13, 13, 13, 14, 14, 14, 14,15, 15, 15, 15, 16, 16, 16, 17, 17, 18])
-    
-    
-    outerRingRadii = innerRingRadii + 21*1e-3
-    outerNumMagnets = innerNumMagnets + 3
     
     resolution = 1
-    numRings = 15
-    ringSep = .022 
+    numRings = 3*maglength   # 3 layers of 2 rings (3*6 bc we are using 3" magnets and defining the cube magnet size to be 1/2")
+    ringSep = .022      #kept this the same as the other code...don't think changing it makes a big difference
+    
+    innerRingRadii=np.ones(nm)      #changed the way these vectors are defined so that I can easily change the parameters
+    innerRingRadii=np.multiply(innerRingRadii,ir)   #vector w/ size nm (number of magnets in inner ring) with all values=inner ring radius
+    
+    innerNumMagnets=np.ones(nm)     # number of magnets in each inner ring --values stay the same for all rings
+    innerNumMagnets=np.multiply(innerNumMagnets,int(nm))  
+    innerNumMagnets = innerNumMagnets.astype(int)
+    
+    outerRingRadii = innerRingRadii + 35*1e-3       #outer ring rad is 8.1cm
+    outerNumMagnets = innerNumMagnets + 5
+
     magnetLength = (numRings - 1) * ringSep
     ringPositions = np.linspace(-magnetLength/2, magnetLength/2, numRings)
     
@@ -45,7 +57,9 @@ if __name__ == "__main__":
     popSim = 10000
     maxGeneration = 100
     
-    DSV = 20*1e-3
+    DSV = 25*1e-3 #2.5 cm
+    
+   # numberofmagneeded= (numRings/maglength)*(nm+(nm+3))  
     
 ###################################################################################################################
 ##########################################                               ##########################################
@@ -175,7 +189,7 @@ if __name__ == "__main__":
         
         minTracker[g-1]= min(fits)
         print("Evaluation took " + str(time.time()-startTime) + " seconds")        
-       # print("Minimum: %i ppm" % min(fits))
+        print("Minimum: %i ppm" % min(fits))
     
     print("-- End of (successful) evolution --")
     best_ind = tools.selBest(pop, 1)[0]
@@ -183,6 +197,7 @@ if __name__ == "__main__":
             
     
     bestVector = np.array(actualBestVector)    
+    print('bestVector is:', bestVector)             #prints best position vector--so we know the design works for the long rod magnets
     
     shimmedField = np.zeros(np.shape(mask))
     for positionIdx, position in enumerate(ringPositionsSymmetery):
@@ -192,7 +207,13 @@ if __name__ == "__main__":
             rings = (-position, position)
         shimmedField += halbachFields.createHalbach(numMagnets = innerNumMagnets[bestVector[positionIdx]], rings = rings, radius = innerRingRadii[bestVector[positionIdx]], magnetSize = 0.012, resolution = 1e3/resolution, simDimensions = simDimensions)[...,0]
         shimmedField += halbachFields.createHalbach(numMagnets = outerNumMagnets[bestVector[positionIdx]], rings = rings, radius = outerRingRadii[bestVector[positionIdx]], magnetSize = 0.012, resolution = 1e3/resolution, simDimensions = simDimensions)[...,0]
-
+        
+        print('best # of magnets inner ring:', innerNumMagnets[bestVector[positionIdx]])
+        print('best # of magnets outer ring:', outerNumMagnets[bestVector[positionIdx]])
+        
+        print('best rad size inner ring:', innerRingRadii[bestVector[positionIdx]])            
+        print('best rad size outer ring:', outerRingRadii[bestVector[positionIdx]])
+        
     mask[mask == 0] = np.nan
     
     maskedField = np.abs(np.multiply(shimmedField,mask))
@@ -219,6 +240,27 @@ if __name__ == "__main__":
     ax[2].imshow(maskedField[int(np.floor(np.size(maskedField,0)/2)),:,:])    
     
     
+    #fieldData = fieldData.reshape(1, -1)
+    #np.savetxt('fieldData.csv', fieldData, delimiter=',')
     
+    
+    maskedFielddata=maskedField
+    
+    maskedFielddata=maskedFielddata.reshape(1,-1)
+    np.savetxt('maskedFieldData.csv', maskedFielddata,delimiter=',')
+                                
+    
+   # np.savetxt('shimFieldData.csv', maskedFielddata,delimiter=',')
+                                
+                                
+    #print("number of magnets needed",numberofmagneeded)
+                                
+                                
+                                
+                                
+                                
+                                
+                                
+
     
     
